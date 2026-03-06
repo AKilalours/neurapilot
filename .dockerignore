@@ -1,0 +1,22 @@
+# NeuraPilot .dockerignore
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.env
+.data/
+.chroma/
+*.egg-info/
+dist/
+build/
+.git/
+.gitignore
+*.md
+tests/
+scripts/
+.github/
+*.zip
+*.bak
+node_modules/
+.DS_Store

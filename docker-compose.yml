@@ -1,0 +1,155 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NeuraPilot — docker-compose.yml
+# Full production stack: app + ollama + analytics
+#
+# Usage:
+#   docker compose up -d                  # start everything
+#   docker compose logs -f neurapilot     # watch logs
+#   docker compose down                   # stop
+#   docker compose down -v                # stop + delete volumes
+# ─────────────────────────────────────────────────────────────────────────────
+
+version: "3.9"
+
+services:
+
+  # ── NeuraPilot UI (Streamlit) ──────────────────────────────────────────────
+  neurapilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: neurapilot:latest
+    container_name: neurapilot-app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"        # Streamlit UI → http://localhost:8501
+    volumes:
+      - neurapilot-data:/app/.data
+      - neurapilot-chroma:/app/.chroma
+    environment:
+      # ── LLM provider: ollama (local) or openai ──────────────────────────
+      LLM_PROVIDER:         ${LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL:      http://ollama:11434
+      OLLAMA_CHAT_MODEL:    ${OLLAMA_CHAT_MODEL:-llama3.1:8b}
+      OLLAMA_EMBED_MODEL:   ${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      # ── Uncomment if using OpenAI ────────────────────────────────────────
+      # OPENAI_API_KEY:     ${OPENAI_API_KEY}
+      # OPENAI_MODEL:       gpt-4o-mini
+      # ── App settings ─────────────────────────────────────────────────────
+      DATA_DIR:             /app/.data
+      UPLOAD_DIR:           /app/.data/uploads
+      DB_PATH:              /app/.data/neurapilot.db
+      CHROMA_DIR:           /app/.chroma
+      TOP_K:                "6"
+      STRICT_GROUNDING:     "false"
+      EVAL_ENABLED:         "true"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - neurapilot-net
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # ── Analytics Dashboard (separate Streamlit page) ─────────────────────────
+  analytics:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    image: neurapilot:latest
+    container_name: neurapilot-analytics
+    restart: unless-stopped
+    ports:
+      - "8502:8502"        # Analytics → http://localhost:8502
+    volumes:
+      - neurapilot-data:/app/.data    # shared read access to same DB
+      - neurapilot-chroma:/app/.chroma
+    environment:
+      LLM_PROVIDER:     ${LLM_PROVIDER:-ollama}
+      OLLAMA_BASE_URL:  http://ollama:11434
+      DATA_DIR:         /app/.data
+      DB_PATH:          /app/.data/neurapilot.db
+      CHROMA_DIR:       /app/.chroma
+    command: >
+      streamlit run neurapilot/analytics_dashboard.py
+      --server.port=8502
+      --server.address=0.0.0.0
+      --server.headless=true
+      --browser.gatherUsageStats=false
+    depends_on:
+      - neurapilot
+    networks:
+      - neurapilot-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ── Ollama (local LLM server) ─────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: neurapilot-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - neurapilot-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]   # remove if no GPU
+        limits:
+          memory: 8G
+
+  # ── Model bootstrapper (runs once, pulls required models) ─────────────────
+  ollama-bootstrap:
+    image: ollama/ollama:latest
+    container_name: neurapilot-bootstrap
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: >
+      /bin/sh -c "
+        echo 'Pulling chat model...' &&
+        ollama pull ${OLLAMA_CHAT_MODEL:-llama3.1:8b} &&
+        echo 'Pulling embed model...' &&
+        ollama pull ${OLLAMA_EMBED_MODEL:-nomic-embed-text} &&
+        echo 'Models ready.'
+      "
+    networks:
+      - neurapilot-net
+    restart: "no"   # run once only
+
+# ── Volumes ───────────────────────────────────────────────────────────────────
+volumes:
+  neurapilot-data:    # SQLite DB + uploads
+  neurapilot-chroma:  # ChromaDB vector store
+  ollama-models:      # Downloaded LLM weights
+
+# ── Networks ──────────────────────────────────────────────────────────────────
+networks:
+  neurapilot-net:
+    driver: bridge
