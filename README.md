@@ -301,7 +301,7 @@ neurapilot/
 
 ---
 
-## 🏗️ Interview One-Liner
+## One-Liner
 
 > *"Built a hybrid RAG tutor with LangGraph + ChromaDB + semantic caching → p95 ~4.2 s, cost $0.00024/request, RAGAS faithfulness 0.81, hit@10 0.83. FastAPI + Streamlit + SQLite + Ollama/OpenAI. Dockerised. 42% latency reduction via cosine cache. 8 production bugs found, root-caused, and fixed — all documented in postmortem log."*
 
