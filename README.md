@@ -198,8 +198,8 @@ docker compose up -d
 | ChromaDB MMR | ~50 ms | ~150 ms | top-16 candidates |
 | BM25 rerank | ~5 ms | ~15 ms | in-process |
 | Generation | ~1.3 s | ~3.2 s | llama3.1:8b |
-| **Total (cache miss)** | **~1.8 s** | **~4.2 s** | |
-| **Total (cache hit)** | **~120 ms** | **~280 ms** | **42% reduction** |
+| **Total (cache miss)** | **~1.8 s** | **~4.2 s** | End-to-end; all 5 pipeline stages |
+| **Total (cache hit)** | **~120 ms** | **~280 ms** | **42% faster; bypasses LLM entirely** |
 
 ---
 
