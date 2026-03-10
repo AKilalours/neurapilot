@@ -70,36 +70,36 @@ Student Query
      │
      ▼
 ┌─────────────────────────────────────────────────────┐
-│                   Streamlit UI                       │
-│   chat · quiz · flashcards · visualize · study plan  │
+│                   Streamlit UI                      │
+│   chat · quiz · flashcards · visualize · study plan │
 └──────────────────────┬──────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────┐
-│        Semantic Cache  (SQLite + cosine sim)         │
-│    embed query → cosine ≥ 0.92 → HIT  (~120 ms)    │
+│        Semantic Cache  (SQLite + cosine sim)        │
+│    embed query → cosine ≥ 0.92 → HIT  (~120 ms)     │
 └──────────────┬──────────────────────┬───────────────┘
           MISS │                      │ HIT
                ▼                      │
 ┌──────────────────────────────────┐  │
 │       LangGraph Pipeline         │  │
 │                                  │  │
-│  ① Classify                     │  │
+│  ① Classify                      │  │
 │     keyword regex → LLM fallback │  │
 │                                  │  │
-│  ② Rewrite  (HyDE expansion)    │  │
+│  ② Rewrite  (HyDE expansion)     │  │
 │     hypothetical doc → richer    │  │
 │     embedding for retrieval      │  │
 │                                  │  │
-│  ③ Retrieve (ChromaDB MMR)      │  │
+│  ③ Retrieve (ChromaDB MMR)       │  │
 │     max marginal relevance →     │  │
 │     top-K diverse chunks         │  │
 │                                  │  │
-│  ④ Rerank   (BM25 term scoring) │  │
+│  ④ Rerank   (BM25 term scoring)  │  │
 │     must-terms boost →           │  │
 │     precision ↑ at low K         │  │
 │                                  │  │
-│  ⑤ Generate (intent-routed)     │  │
+│  ⑤ Generate (intent-routed)      │  │
 │     ask / quiz / flashcards /    │  │
 │     summarize / plan / guidance  │  │
 └──────────────┬───────────────────┘  │
@@ -113,7 +113,7 @@ Student Query
                ▼
 ┌─────────────────────────────────┐
 │     Analytics Dashboard         │
-│   p95 · cost · hit@10 · SLO    │
+│   p95 · cost · hit@10 · SLO     │
 └─────────────────────────────────┘
 ```
 
@@ -209,7 +209,7 @@ docker compose up -d
 ┌──────────────┐   miss   ┌──────────────┐   fail   ┌──────────────┐
 │ Semantic     │ ───────▶ │  LangGraph   │ ───────▶ │  Fallback:   │
 │ Cache        │          │  Pipeline    │          │  empty ctx   │
-│ (SQLite)     │ ◀─────── │  (LLM+RAG)  │          │  + error msg │
+│ (SQLite)     │ ◀─────── │  (LLM+RAG)   │          │  + error msg │
 └──────────────┘   hit    └──────────────┘          └──────────────┘
         │                        │
         │                        ▼
