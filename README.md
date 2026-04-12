@@ -62,6 +62,17 @@ The demo folder contains:
 - 🎥 **Video** — Full walkthrough of the agentic RAG pipeline in action
 
 ---
+## 🎯 Highlights
+
+**🏭 Production NLP Inference API**  
+Deployed production NLP inference API serving real-time question answering: FastAPI backend with 5-stage NLP pipeline (query classification → HyDE rewriting → MMR retrieval → BM25 reranking → intent-routed generation), Redis semantic cache achieving **38% hit rate at 120ms latency** on cache hits, and RAGAS evaluation across **faithfulness (0.81), answer relevance (0.78), hit@10 (0.83)** — production NLP model serving meeting all 9 SLOs.  
+*NLP deployment · production inference API · model serving · NLP evaluation*
+
+**📊 Production Observability Dashboard**  
+Built full-stack AI tooling web application with Streamlit frontend, FastAPI REST backend, and SQLite observability layer — providing real-time latency dashboards (p50/p95/p99 per pipeline stage), cost-per-request gauges, RAGAS quality metrics, and SLO alerting; the AI tooling interface lets ML engineers monitor and debug the agentic pipeline in production without writing code.  
+*AI tooling · full-stack · observability · ML dashboards*
+
+---
 
 ## 📐 Architecture — Data Flow
 
