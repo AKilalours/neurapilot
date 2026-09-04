@@ -13,6 +13,7 @@ Auto-generated OpenAPI docs at /docs and /redoc.
 from __future__ import annotations
 
 import time
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
@@ -25,7 +26,13 @@ from neurapilot.rag.ingest import ingest_course
 from neurapilot.rag.llm import build_llm_bundle
 from neurapilot.rag.store import get_retriever
 from neurapilot.rag.agent_graph import build_pipeline
-from neurapilot.storage import course_upload_dir, load_courses, save_courses
+from neurapilot.storage import (
+    course_upload_dir,
+    load_courses,
+    resolve_within,
+    safe_filename,
+    save_courses,
+)
 
 
 # ── App setup ─────────────────────────────────────────────────────────────────
@@ -119,15 +126,23 @@ async def upload_file(
 ) -> dict[str, Any]:
     """Upload a document to a course workspace."""
     allowed_exts = {".pdf", ".txt", ".md"}
-    import pathlib
-    ext = pathlib.Path(file.filename or "").suffix.lower()
-    if ext not in allowed_exts:
-        raise HTTPException(400, f"Unsupported file type: {ext}. Allowed: {allowed_exts}")
 
-    dest = course_upload_dir(_settings, course_id) / (file.filename or "upload.txt")
+    # The client controls file.filename entirely, so reduce it to a single
+    # safe path component before it is used to build a destination path.
+    name = safe_filename(file.filename)
+    ext = Path(name).suffix.lower()
+    if ext not in allowed_exts:
+        raise HTTPException(400, f"Unsupported file type: {ext}. Allowed: {sorted(allowed_exts)}")
+
+    upload_dir = course_upload_dir(_settings, course_id)
+    try:
+        dest = resolve_within(upload_dir, name)
+    except ValueError:
+        raise HTTPException(400, "Invalid filename")
+
     content = await file.read()
     dest.write_bytes(content)
-    return {"status": "uploaded", "filename": file.filename, "size_bytes": len(content)}
+    return {"status": "uploaded", "filename": name, "size_bytes": len(content)}
 
 
 @app.post("/courses/{course_id}/ingest", tags=["Ingestion"])
