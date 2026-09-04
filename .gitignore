@@ -1,3 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Environments
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+ENV/
+
+# Secrets and credentials
+*.pem
+*.key
+credentials.json
+service-account*.json
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Vector stores / local data / model caches
+*.db
+*.sqlite3
+chroma/
+.chroma/
+faiss_index/
+data/raw/
+*.faiss
+*.pkl
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Logs
+*.log
+logs/
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Failed mkdir brace-expansion artifact
+{neurapilot*
+
+# Local vector store and cached data
+.data/
 neurapilot.egg-info/
-{neurapilot/
