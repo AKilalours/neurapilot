@@ -5,6 +5,7 @@ never constructs paths manually.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -26,7 +27,7 @@ def ensure_dirs(settings: Settings) -> None:
 def course_upload_dir(settings: Settings, course_id: str) -> Path:
     """Return (and create) the upload directory for a given course."""
     ensure_dirs(settings)
-    d = Path(settings.upload_dir) / _safe_id(course_id)
+    d = Path(settings.upload_dir) / course_slug(course_id)
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -61,9 +62,23 @@ def save_courses(settings: Settings, courses: dict[str, dict[str, Any]]) -> None
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _safe_id(course_id: str) -> str:
-    """Sanitize a course_id for use as a directory/collection name."""
-    return "".join(c for c in course_id.lower() if c.isalnum() or c in ("-", "_")).strip("-_") or "default"
+def course_slug(course_id: str, max_len: int = 48) -> str:
+    """Return a filesystem- and Chroma-safe slug that is unique per course_id.
+
+    Sanitizing alone is lossy: "CS 101" and "cs101" both reduce to "cs101", and
+    long ids collide once truncated. Two courses the user considers separate
+    would then share one upload directory and one vector collection, so a query
+    against one silently retrieves the other's documents.
+
+    Appending a digest of the ORIGINAL id keeps distinct ids distinct no matter
+    what sanitizing or truncation removes, while the readable stem keeps
+    directories browsable.
+    """
+    digest = hashlib.sha256(course_id.encode("utf-8")).hexdigest()[:8]
+    stem = "".join(c for c in course_id.lower() if c.isalnum() or c in ("-", "_")).strip("-_")
+    keep = max(0, max_len - len(digest) - 1)
+    stem = stem[:keep].strip("-_")
+    return f"{stem}-{digest}" if stem else digest
 
 
 def safe_filename(filename: str | None, default: str = "upload.txt") -> str:
@@ -98,3 +113,18 @@ def resolve_within(base: Path, name: str) -> Path:
     if candidate != base_resolved and base_resolved not in candidate.parents:
         raise ValueError(f"Path escapes its base directory: {name!r}")
     return candidate
+
+
+def collection_name(settings: Settings, course_id: str) -> str:
+    """Return the Chroma collection name for a course.
+
+    Lives here rather than in rag.store so that the collection name and the
+    upload directory are derived from one implementation. They previously had
+    separate copies of the sanitizing logic, which could drift and leave a
+    course's files and vectors under different identities.
+
+    Chroma requires 3-63 characters, starting and ending alphanumeric.
+    """
+    prefix = f"{settings.base_collection}__"
+    budget = max(12, 63 - len(prefix))
+    return f"{prefix}{course_slug(course_id, max_len=budget)}"[:63]

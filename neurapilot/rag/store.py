@@ -10,14 +10,14 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.vectorstores import VectorStoreRetriever
 
 from neurapilot.config import Settings
+from neurapilot.storage import collection_name
 
-
-def collection_name(settings: Settings, course_id: str) -> str:
-    """Generate a valid Chroma collection name for a course."""
-    safe = "".join(c for c in course_id.lower() if c.isalnum() or c in ("-", "_")).strip("-_")
-    name = f"{settings.base_collection}__{safe or 'default'}"
-    # Chroma collection names must be 3-63 chars
-    return name[:63]
+__all__ = [
+    "collection_name",
+    "delete_course_collection",
+    "get_retriever",
+    "get_vector_store",
+]
 
 
 def get_vector_store(
