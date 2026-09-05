@@ -64,3 +64,6 @@ Thumbs.db
 # Local vector store and cached data
 .data/
 neurapilot.egg-info/
+
+# Benchmark run artifacts (contain course material)
+eval_results_*.csv

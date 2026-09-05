@@ -1,0 +1,18 @@
+[
+  {"question": "What is the difference between supervised and unsupervised learning?"},
+  {"question": "Explain the supervised learning example used in the lecture."},
+  {"question": "What is density estimation, and why is it described as ill-posed?"},
+  {"question": "How does the lecture define a Bernoulli distribution over a binary variable?"},
+  {"question": "What is the maximum likelihood estimate for the parameter of a Bernoulli distribution?"},
+  {"question": "How does the multinomial distribution generalise the binary case?"},
+  {"question": "What are the parameters of a multivariate Gaussian distribution?"},
+  {"question": "Why is model selection described as a central issue in pattern recognition?"},
+  {"question": "Summarise what decision theory contributes to a classification problem."},
+  {"question": "What role does information theory play in the material covered?"},
+  {"question": "How are machine learning, deep learning and artificial intelligence related?"},
+  {"question": "What is the relationship between the sum rule and the product rule of probability?"},
+  {"question": "What does the lecture say about using GitHub for portfolio building?"},
+  {"question": "Who teaches this course and at which department?"},
+  {"question": "What is the capital of France?"},
+  {"question": "Summarise the entire syllabus for the semester including the final exam date."}
+]
