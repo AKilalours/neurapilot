@@ -58,8 +58,8 @@ _FAITHFULNESS_PROMPT = ChatPromptTemplate.from_messages([
         """Given a CONTEXT and an ANSWER, determine what fraction of the answer's
 claims are directly supported by the context.
 
-Count the number of sentences in ANSWER, then count how many are supported by CONTEXT.
-Return ONLY a decimal between 0.0 and 1.0. Example: 0.75""",
+Respond with ONLY a decimal between 0.0 and 1.0 and nothing else.
+No explanation, no counts, no words. Example: 0.75""",
     ),
     ("human", "CONTEXT:\n{context}\n\nANSWER:\n{answer}"),
 ])
@@ -92,13 +92,37 @@ Return ONLY a decimal between 0.0 and 1.0. Example: 0.6""",
 # ── Metric functions ──────────────────────────────────────────────────────────
 
 
+def _is_refusal(answer: str) -> bool:
+    """True when the pipeline declined to answer.
+
+    Scoring a refusal is meaningless, so these are excluded. The previous
+    equality check against "Not found in documents." never matched, because the
+    string the prompt actually emits is "⚠️ Not found in documents for this
+    part."; substring matching covers both.
+    """
+    return "not found in documents" in answer.strip().lower()
+
+
 def _parse_score(raw: str) -> float | None:
-    """Extract a float score from LLM output."""
+    """Extract a float score from LLM output.
+
+    The judge is asked for a bare decimal, but small models frequently narrate
+    first ("There are 5 sentences, 4 are supported, so 0.8"). Taking the FIRST
+    number picks up a sentence count and, once clamped to [0, 1], silently
+    reports a perfect 1.0. Scores are stated last, so scan backwards and return
+    the last value that is actually inside [0, 1].
+
+    Returns None when no in-range value exists, rather than inventing one.
+    """
     matches = re.findall(r"\d+\.?\d*", raw.strip())
-    if not matches:
-        return None
-    score = float(matches[0])
-    return round(max(0.0, min(1.0, score)), 3)
+    for token in reversed(matches):
+        try:
+            value = float(token)
+        except ValueError:
+            continue
+        if 0.0 <= value <= 1.0:
+            return round(value, 3)
+    return None
 
 
 def compute_faithfulness(
@@ -107,7 +131,7 @@ def compute_faithfulness(
     docs: list[Document],
 ) -> float | None:
     """Compute faithfulness score: how well the answer is grounded in context."""
-    if not docs or not answer or answer == "Not found in documents.":
+    if not docs or not answer or _is_refusal(answer):
         return None
     context = "\n\n".join(d.page_content[:500] for d in docs[:6])
     try:
@@ -123,7 +147,7 @@ def compute_answer_relevance(
     answer: str,
 ) -> float | None:
     """Compute answer relevance score: how well the answer addresses the question."""
-    if not answer or answer == "Not found in documents.":
+    if not answer or _is_refusal(answer):
         return None
     try:
         out = llm.invoke(_RELEVANCE_PROMPT.format_messages(question=question, answer=answer[:2000]))
