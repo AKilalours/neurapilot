@@ -20,7 +20,11 @@ from langchain_core.documents import Document
 from langchain_core.language_models.chat_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
-from neurapilot.rag.prompts import CLASSIFY_PROMPT
+from neurapilot.rag.prompts import (
+    CLASSIFY_PROMPT,
+    NOT_FOUND_MARKER,
+    UNGROUNDED_HEDGES,
+)
 from neurapilot.rag.rag import (
     RAGResult,
     extract_citation_keys,
@@ -95,6 +99,40 @@ def _parse_classify(raw: str) -> tuple[str, str]:
         except Exception:
             pass
     return "ask", "course material"
+
+
+def apply_hallucination_guard(
+    answer: str,
+    docs: list,
+    strict: bool,
+    enabled: bool,
+) -> str:
+    """Return `answer`, or a refusal when it is not grounded in `docs`.
+
+    Two cases, both observed in benchmarking:
+
+    1. Nothing was retrieved. Generating from an empty context can only produce
+       parametric knowledge, so refuse without calling the model.
+    2. The model emitted the not-found marker and then answered anyway, e.g.
+       "Not found in documents for this part. However, ... the capital of France
+       is Paris." The prompt now forbids this; this is the backstop for when a
+       small model ignores the rule.
+
+    Case 2 is a heuristic over known hedge phrases, not a proof of grounding. It
+    is deliberately narrow: it only fires when the model has ALREADY admitted the
+    context was insufficient, so a fully grounded answer is never rewritten.
+    """
+    if not enabled:
+        return answer
+    if not docs:
+        return NOT_FOUND_MARKER
+    if not strict:
+        return answer
+
+    lowered = answer.lower()
+    if "not found in documents" in lowered and any(h in lowered for h in UNGROUNDED_HEDGES):
+        return NOT_FOUND_MARKER
+    return answer
 
 
 def build_pipeline(
@@ -196,8 +234,13 @@ def build_pipeline(
     # ── Generation nodes ──────────────────────────────────────────────────────
 
     def ask_node(state: AgentState) -> AgentState:
-        result = generate_answer(llm, state.get("question",""), state.get("docs",[]), bool(state.get("strict", strict_default)))
-        return {"output": result.answer}
+        docs   = state.get("docs", [])
+        strict = bool(state.get("strict", strict_default))
+        if hallucination_guard and not docs:
+            # Nothing retrieved: refuse without spending a generation call.
+            return {"output": NOT_FOUND_MARKER}
+        result = generate_answer(llm, state.get("question",""), docs, strict)
+        return {"output": apply_hallucination_guard(result.answer, docs, strict, hallucination_guard)}
 
     def flashcards_node(state: AgentState) -> AgentState:
         out = generate_flashcards(llm, state.get("topic",""), state.get("docs",[]), bool(state.get("strict", strict_default)))

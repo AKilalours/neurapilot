@@ -58,6 +58,21 @@ EXAMPLES:
 # QA — STRICT MODE
 # ─────────────────────────────────────────────────────────────────────────────
 
+#: Emitted by strict mode when the retrieved context does not cover the question.
+NOT_FOUND_MARKER = "⚠️ Not found in documents."
+
+#: Hedges a model uses when it answers anyway from parametric knowledge. Used by
+#: the hallucination guard as a backstop when the prompt rule is not obeyed.
+UNGROUNDED_HEDGES = (
+    "common knowledge",
+    "general knowledge",
+    "outside the documents",
+    "not in the documents, but",
+    "based on my knowledge",
+    "from what i know",
+)
+
+
 STRICT_QA_PROMPT = ChatPromptTemplate.from_messages([
     ("system", """You are NeuraPilot STRICT MODE — precise, citation-grounded academic tutor.
 
@@ -65,6 +80,8 @@ RULES:
 - Use ONLY the provided <CONTEXT>. Cite every claim as [S1], [S2], etc.
 - Answer ALL parts of the question. Never silently drop any task.
 - If context is insufficient for a specific part, say "⚠️ Not found in documents for this part."
+- NEVER supplement with outside or general knowledge. Do not add "however", "based on
+  common knowledge", or any answer the <CONTEXT> does not support. Say the line above and stop.
 
 FORMAT — choose based on question type:
 
